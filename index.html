@@ -74,11 +74,37 @@
         .admin-badge {
             position: fixed;
             bottom: 10px;
-            right: 10px;
             font-size: 10px;
             color: rgba(255,255,255,0.2);
             cursor: pointer;
             z-index: 50;
+        }
+        .admin-badge-right { right: 10px; }
+        .admin-badge-left { left: 10px; }
+        
+        /* Table Scroll styling */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        /* Print Styles */
+        @media print {
+            body { background: white !important; color: black !important; padding: 0 !important; }
+            #admin-data-section { position: absolute !important; display: block !important; background: white !important; padding: 0 !important; }
+            .glass-card { background: white !important; border: 1px solid #ddd !important; box-shadow: none !important; backdrop-filter: none !important; }
+            #btn-close-admin-data, #btn-print-admin-data, .admin-badge, #loading-overlay, #auth-section, #quiz-section, #result-section { display: none !important; }
+            th { background: #f3f4f6 !important; color: black !important; border-bottom: 2px solid #000 !important; }
+            td { color: black !important; border-bottom: 1px solid #eee !important; }
+            .text-indigo-300, .text-emerald-400 { color: black !important; font-weight: bold !important; }
+            .max-w-6xl { max-width: 100% !important; margin: 0 !important; width: 100% !important; }
+            tr { page-break-inside: avoid; }
         }
     </style>
 </head>
@@ -93,8 +119,35 @@
     <!-- Error Toast -->
     <div id="error-toast" class="error-toast"></div>
 
-    <!-- Admin Trigger -->
-    <div id="admin-trigger" class="admin-badge hover:color-white">ADMIN ACCESS</div>
+    <!-- Admin Password Modal (Pop-art Style) -->
+    <div id="admin-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm">
+        <div class="glass-card max-w-sm w-full p-8 rounded-3xl border border-slate-700 fade-in text-center shadow-2xl">
+            <div class="w-12 h-12 bg-indigo-600 rounded-full mx-auto flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+            <h3 id="modal-title" class="text-xl font-bold mb-2">Akses Terbatas</h3>
+            <p id="modal-desc" class="text-slate-400 text-sm mb-6">Masukkan kode akses admin untuk melanjutkan.</p>
+            
+            <input type="password" id="admin-password-input" 
+                   class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-center mb-6 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600" 
+                   placeholder="••••••••">
+            
+            <div class="flex gap-3">
+                <button id="btn-modal-cancel" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold text-sm transition-all text-slate-300">
+                    Batal
+                </button>
+                <button id="btn-modal-submit" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-600/20">
+                    Konfirmasi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Triggers -->
+    <div id="admin-trigger" class="admin-badge admin-badge-right hover:text-white">ADMIN ACCESS</div>
+    <div id="admin-data-trigger" class="admin-badge admin-badge-left hover:text-white">REKAP DATA</div>
 
     <!-- BAGIAN 1: INPUT IDENTITAS -->
     <div id="auth-section" class="max-w-md w-full glass-card rounded-3xl shadow-2xl p-8 text-center fade-in">
@@ -105,8 +158,8 @@
                 </svg>
             </div>
             <h1 class="text-2xl font-extrabold text-slate-100">Verifikasi Identitas</h1>
-            <p class="text-slate-400 text-sm mt-2 text-balance">Masukkan Nama Lengkap dan Kelas/Jurusan</p>
-            <p id="admin-status" class="hidden text-green-400 text-[10px] font-bold mt-2 uppercase">Mode Admin Aktif (Tanpa Batasan)</p>
+            <p class="text-slate-400 text-sm mt-2 text-balance">Masukkan Nama Lengkap dan Pilih Kelas Anda</p>
+            <p id="admin-status" class="hidden text-green-400 text-[10px] font-bold mt-2 uppercase tracking-widest">Mode Admin Aktif (Tanpa Batasan)</p>
         </div>
 
         <div class="space-y-4 text-left">
@@ -117,8 +170,13 @@
             </div>
             <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Kelas dan Jurusan</label>
-                <input type="text" id="user-class" placeholder="Masukkan Kelas dan Jurusan" 
-                       class="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                <select id="user-class" class="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none">
+                    <option value="" disabled selected class="bg-slate-900">Pilih Kelas</option>
+                    <option value="XII DPIB 1" class="bg-slate-900">XII DPIB 1</option>
+                    <option value="XII DPIB 2" class="bg-slate-900">XII DPIB 2</option>
+                    <option value="XII TKP 1" class="bg-slate-900">XII TKP 1</option>
+                    <option value="XII TKP 2" class="bg-slate-900">XII TKP 2</option>
+                </select>
             </div>
             <button id="btn-start" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all mt-4 uppercase tracking-widest text-sm">
                 Buka Pertanyaan
@@ -131,7 +189,7 @@
         <div class="mb-8">
             <div class="flex justify-between items-center mb-6 px-2">
                 <div class="text-left">
-                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Agen Aktif</p>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Nama</p>
                     <p id="display-name" class="text-indigo-400 font-bold"></p>
                 </div>
                 <div class="text-right">
@@ -141,10 +199,10 @@
             </div>
             
             <span class="inline-block bg-rose-500/20 text-rose-400 border border-rose-500/30 px-4 py-1 rounded-full text-[10px] font-bold tracking-[0.2em] uppercase mb-4">
-                Sistem Pengacakan Aktif
+                Pilih salah satu !
             </span>
             <h2 class="text-2xl md:text-3xl font-extrabold leading-tight text-slate-100">
-                Siapakah nama hewan peliharaan tetangga presiden ke-3 negara Konoha?
+                Siapakah nama hewan peliharaan tetangga dari presiden ke-3 negara Konoha?
             </h2>
         </div>
 
@@ -165,7 +223,50 @@
         </div>
 
         <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">Akses Jawaban Ditutup</p>
-        <button id="btn-admin-reset" class="hidden mt-4 text-[10px] text-indigo-400 underline hover:text-indigo-300">ADMIN: RESET UNTUK COBA LAGI</button>
+        <button id="btn-admin-reset" class="hidden mt-4 text-[10px] text-indigo-400 underline hover:text-indigo-300 transition-all">ADMIN: RESET UNTUK COBA LAGI</button>
+    </div>
+
+    <!-- BAGIAN 4: PANEL REKAP DATA ADMIN -->
+    <div id="admin-data-section" class="hidden fixed inset-0 z-[60] bg-slate-950 flex flex-col p-4 md:p-8 fade-in overflow-y-auto">
+        <div class="max-w-6xl w-full mx-auto flex-1 flex flex-col min-h-full">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Rekapitulasi Jawaban</h2>
+                    <p class="text-slate-400 text-sm">Data diurutkan berdasarkan Kelas dan Nama (A-Z)</p>
+                </div>
+                <div class="flex gap-3 w-full md:w-auto">
+                    <button id="btn-print-admin-data" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-900/50 flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        Cetak Laporan / PDF
+                    </button>
+                    <button id="btn-close-admin-data" class="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-slate-900/50">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col mb-8">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse table-auto min-w-[600px]">
+                        <thead>
+                            <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase tracking-widest border-b border-slate-800">
+                                <th class="px-6 py-4 font-bold w-16">No</th>
+                                <th class="px-6 py-4 font-bold">Kelas</th>
+                                <th class="px-6 py-4 font-bold">Nama Lengkap</th>
+                                <th class="px-6 py-4 font-bold">Jawaban Rahasia</th>
+                                <th class="px-6 py-4 font-bold">Waktu</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body" class="text-slate-200 text-sm">
+                            <!-- Data rows will appear here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="no-data-msg" class="hidden p-12 text-center text-slate-500 italic">Belum ada data terekam...</div>
+            </div>
+        </div>
     </div>
 
     <!-- Firebase Scripts -->
@@ -191,6 +292,7 @@
         let user = null;
         let userData = { name: "", class: "" };
         let isAdmin = false;
+        let activeAdminAction = null; // 'access' or 'data'
 
         const showLoading = (show, text = "Memproses...") => {
             const overlay = document.getElementById('loading-overlay');
@@ -229,7 +331,7 @@
         const items = [
             { name: "Kran Air", img: "kran" },
             { name: "Wiper", img: "wiper" },
-            { name: "Kaleng Cat", img: "kaleng2.jpg" },
+            { name: "Cat Kaleng", img: "kaleng2.jpeg" },
             { name: "Kuas", img: "kuas.jpg" }
         ];
 
@@ -251,15 +353,13 @@
 
         async function startQuiz() {
             const name = document.getElementById('user-name').value.trim();
-            const className = document.getElementById('user-class').value.trim();
-            if (!name || !className) { showError("Harap isi Nama dan Kelas!"); return; }
+            const className = document.getElementById('user-class').value;
+            if (!name || !className) { showError("Harap isi Nama dan Pilih Kelas!"); return; }
             
             showLoading(true, "Memverifikasi Otoritas...");
             try {
                 if (!user) await performSignIn();
                 
-                // Cek apakah sudah pernah menjawab sebelumnya (Limit 1x)
-                // Jika Admin, pemeriksaan ini dilewati
                 if (!isAdmin) {
                     const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia');
                     const snapshot = await getDocs(colRef);
@@ -315,7 +415,7 @@
                     kelas: userData.class,
                     jawaban_rahasia: itemName,
                     timestamp: new Date().toISOString(),
-                    admin_test: isAdmin // Flag jika data ini hasil test admin
+                    admin_test: isAdmin
                 });
 
                 document.getElementById('quiz-section').classList.add('hidden');
@@ -332,22 +432,120 @@
             } finally { showLoading(false); }
         }
 
-        // Logic Admin
-        document.getElementById('admin-trigger').onclick = () => {
-            const pass = prompt("Konfirmasi Password Admin:");
-            if (pass === 'lab15.30') {
-                isAdmin = true;
-                document.getElementById('admin-status').classList.remove('hidden');
-                showError("Mode Admin: Akses bebas diaktifkan.");
-            } else if (pass !== null) {
-                showError("Password Salah!");
+        // --- Logic Panel Rekap Data Admin ---
+        const fetchAdminData = async () => {
+            showLoading(true, "Mengunduh Data Rekap...");
+            const tableBody = document.getElementById('admin-table-body');
+            const noDataMsg = document.getElementById('no-data-msg');
+            tableBody.innerHTML = '';
+
+            try {
+                if (!user) await performSignIn();
+                
+                // Fetching all documents - effectively "unlimited" based on DB content
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia');
+                const snapshot = await getDocs(colRef);
+                
+                let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                if (data.length === 0) {
+                    noDataMsg.classList.remove('hidden');
+                } else {
+                    noDataMsg.classList.add('hidden');
+                }
+
+                // Sort by Class (Kelas) then by Name (Nama) alphabetically
+                data.sort((a, b) => {
+                    const classCompare = (a.kelas || "").localeCompare(b.kelas || "");
+                    if (classCompare !== 0) return classCompare;
+                    return (a.nama || "").localeCompare(b.nama || "");
+                });
+
+                data.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.className = "border-b border-slate-800/50 hover:bg-slate-900/30 transition-colors";
+                    
+                    const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleString('id-ID', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    }) : '-';
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 text-slate-500 font-mono">${index + 1}</td>
+                        <td class="px-6 py-4 font-bold text-indigo-300">${item.kelas || '-'}</td>
+                        <td class="px-6 py-4">${item.nama || '-'}</td>
+                        <td class="px-6 py-4 text-emerald-400 font-semibold">${item.jawaban_rahasia || '-'}</td>
+                        <td class="px-6 py-4 text-[10px] text-slate-400 whitespace-nowrap">${dateStr}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                document.getElementById('admin-data-section').classList.remove('hidden');
+            } catch (error) {
+                console.error("Fetch Data Error:", error);
+                showError("Gagal mengambil data dari database.");
+            } finally {
+                showLoading(false);
             }
+        };
+
+        // --- Admin Password Modal Logic ---
+        const adminModal = document.getElementById('admin-modal');
+        const adminInput = document.getElementById('admin-password-input');
+        
+        const openAdminModal = (action) => {
+            activeAdminAction = action;
+            adminModal.classList.remove('hidden');
+            adminInput.value = '';
+            adminInput.focus();
+        };
+
+        const closeAdminModal = () => {
+            adminModal.classList.add('hidden');
+            activeAdminAction = null;
+        };
+
+        const handleAdminSubmit = () => {
+            const pass = adminInput.value;
+            if (pass === 'lab15.30') {
+                if (activeAdminAction === 'access') {
+                    isAdmin = true;
+                    document.getElementById('admin-status').classList.remove('hidden');
+                    showError("Mode Admin Access Aktif.");
+                } else if (activeAdminAction === 'data') {
+                    fetchAdminData();
+                }
+                closeAdminModal();
+            } else {
+                showError("Password Salah!");
+                adminInput.value = '';
+                adminInput.focus();
+            }
+        };
+
+        // Event Handlers
+        document.getElementById('admin-trigger').onclick = () => openAdminModal('access');
+        document.getElementById('admin-data-trigger').onclick = () => openAdminModal('data');
+        document.getElementById('btn-modal-cancel').onclick = closeAdminModal;
+        document.getElementById('btn-modal-submit').onclick = handleAdminSubmit;
+        
+        // Submit on Enter key
+        adminInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleAdminSubmit();
+        });
+
+        document.getElementById('btn-close-admin-data').onclick = () => {
+            document.getElementById('admin-data-section').classList.add('hidden');
+        };
+
+        document.getElementById('btn-print-admin-data').onclick = () => {
+            window.print();
         };
 
         document.getElementById('btn-admin-reset').onclick = () => {
             document.getElementById('result-section').classList.add('hidden');
             document.getElementById('auth-section').classList.remove('hidden');
-            showError("Reset Berhasil (Admin Only)");
+            showError("Reset Berhasil (Mode Admin)");
         };
 
         document.getElementById('btn-start').onclick = startQuiz;
