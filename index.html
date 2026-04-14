@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Absurd Konoha - Intel Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #020617 0%, #1e1b4b 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+        }
+        .option-button {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .option-button:hover {
+            transform: scale(1.02);
+            background-color: #3730a3;
+            box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .img-container {
+            position: relative;
+            width: 256px;
+            height: 256px;
+            margin: 0 auto;
+        }
+        #result-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 1rem;
+        }
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .error-toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ef4444;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            display: none;
+            z-index: 200;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
+        <p id="loading-text" class="text-sm font-bold tracking-widest uppercase text-center px-4">Menghubungkan ke Server Konoha...</p>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="error-toast" class="error-toast"></div>
+
+    <!-- BAGIAN 1: INPUT IDENTITAS -->
+    <div id="auth-section" class="max-w-md w-full glass-card rounded-3xl shadow-2xl p-8 text-center fade-in">
+        <div class="mb-6">
+            <div class="w-16 h-16 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/30">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+            <h1 class="text-2xl font-extrabold text-slate-100">Verifikasi Identitas</h1>
+            <p class="text-slate-400 text-sm mt-2 text-balance">Satu perangkat hanya dapat memberikan maksimal 2 jawaban rahasia.</p>
+        </div>
+
+        <div class="space-y-4 text-left">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Nama Lengkap</label>
+                <input type="text" id="user-name" placeholder="Contoh: Naruto Uzumaki" 
+                       class="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Kelas / Divisi</label>
+                <input type="text" id="user-class" placeholder="Contoh: Jounin - Tim 7" 
+                       class="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+            </div>
+            <button id="btn-start" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all mt-4 uppercase tracking-widest text-sm">
+                Buka Pertanyaan
+            </button>
+        </div>
+    </div>
+
+    <!-- BAGIAN 2: KONTEN KUIS -->
+    <div id="quiz-section" class="hidden max-w-2xl w-full glass-card rounded-3xl shadow-2xl p-8 md:p-12 text-center fade-in">
+        <div class="mb-8">
+            <div class="flex justify-between items-center mb-6 px-2">
+                <div class="text-left">
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Agen Aktif</p>
+                    <p id="display-name" class="text-indigo-400 font-bold"></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Kelas</p>
+                    <p id="display-class" class="text-indigo-400 font-bold"></p>
+                </div>
+            </div>
+            
+            <span class="inline-block bg-rose-500/20 text-rose-400 border border-rose-500/30 px-4 py-1 rounded-full text-[10px] font-bold tracking-[0.2em] uppercase mb-4">
+                Sistem Pengacakan Aktif
+            </span>
+            <h2 class="text-2xl md:text-3xl font-extrabold leading-tight text-slate-100">
+                Siapakah nama hewan peliharaan tetangga presiden ke-3 negara Konoha?
+            </h2>
+        </div>
+
+        <div id="options-container" class="space-y-3"></div>
+    </div>
+
+    <!-- BAGIAN 3: HASIL -->
+    <div id="result-section" class="hidden max-w-2xl w-full glass-card rounded-3xl shadow-2xl p-8 md:p-12 text-center fade-in">
+        <div class="relative inline-block mb-8 group">
+            <div class="absolute -inset-2 bg-gradient-to-r from-indigo-500 to-rose-500 rounded-2xl blur opacity-20"></div>
+            <div class="img-container">
+                <img id="result-image" src="" alt="Barang Rahasia" onerror="this.src='https://placehold.co/600x600?text=Gambar+Tidak+Ditemukan'">
+            </div>
+        </div>
+        
+        <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl mb-8">
+            <p id="result-text" class="text-lg md:text-xl font-semibold text-indigo-200"></p>
+        </div>
+
+        <button id="btn-restart" class="px-8 py-3 bg-slate-800 hover:bg-slate-700 rounded-full text-xs font-bold tracking-widest uppercase transition-all border border-slate-600">
+            Ulangi & Acak Lagi
+        </button>
+    </div>
+
+    <!-- Firebase Scripts -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        // Konfigurasi Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDDHwbFq1rFoSImy3I8g3O820vV_sPdEHE",
+            authDomain: "dpib-system-v2.firebaseapp.com",
+            projectId: "dpib-system-v2",
+            storageBucket: "dpib-system-v2.firebasestorage.app",
+            messagingSenderId: "444034231596",
+            appId: "1:444034231596:web:087a500225bffabe7d5089"
+        };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'konoha-quiz-app';
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let user = null;
+        let userData = { name: "", class: "" };
+
+        // Helper UI
+        const showLoading = (show, text = "Memproses...") => {
+            const overlay = document.getElementById('loading-overlay');
+            const loadingText = document.getElementById('loading-text');
+            if (loadingText) loadingText.innerText = text;
+            overlay.style.display = show ? 'flex' : 'none';
+        };
+
+        const showError = (message) => {
+            const toast = document.getElementById('error-toast');
+            toast.innerText = message;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 5000);
+        };
+
+        // Fungsi Sign In
+        const performSignIn = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    try {
+                        return await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (tokenErr) {
+                        return await signInAnonymously(auth);
+                    }
+                } else {
+                    return await signInAnonymously(auth);
+                }
+            } catch (error) {
+                showError("Kesalahan Autentikasi: " + error.message);
+                throw error;
+            }
+        };
+
+        onAuthStateChanged(auth, (u) => { user = u; });
+
+        // Data Gambar
+        const items = [
+            { name: "Kran Air", img: "kran" },
+            { name: "Wiper", img: "wiper" },
+            { name: "Kaleng Cat", img: "kaleng.jpg" }
+        ];
+
+        const labels = [
+            "A. X-Aerodinamis 3000 Turbo",
+            "B. Paimon si Bebek Rawa Purba",
+            "C. Alexander van Meong-Meong IX"
+        ];
+
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        async function startQuiz() {
+            const name = document.getElementById('user-name').value.trim();
+            const className = document.getElementById('user-class').value.trim();
+            if (!name || !className) { showError("Harap isi Nama dan Kelas!"); return; }
+            
+            showLoading(true, "Memverifikasi Otoritas...");
+            try {
+                if (!user) await performSignIn();
+                
+                userData.name = name;
+                userData.class = className;
+                document.getElementById('display-name').innerText = name;
+                document.getElementById('display-class').innerText = className;
+                
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('quiz-section').classList.remove('hidden');
+                initOptions();
+            } catch (err) {
+                console.error(err);
+            } finally { showLoading(false); }
+        }
+
+        function initOptions() {
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            const shuffledLabels = shuffleArray(labels);
+            const shuffledItems = shuffleArray(items);
+            
+            shuffledLabels.forEach((label, index) => {
+                const targetItem = shuffledItems[index];
+                const btn = document.createElement('button');
+                btn.className = "option-button w-full py-4 px-6 bg-slate-800/40 border border-slate-700/50 rounded-2xl font-bold text-slate-200 text-left flex justify-between items-center group mb-3";
+                btn.innerHTML = `<span>${label}</span><span class="text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] tracking-widest font-black uppercase">Enkripsi</span>`;
+                btn.onclick = () => revealSecret(targetItem.name, targetItem.img);
+                container.appendChild(btn);
+            });
+        }
+
+        async function revealSecret(itemName, imageUrl) {
+            showLoading(true, "Memeriksa Riwayat Pengiriman...");
+            try {
+                if (!user) await performSignIn();
+                if (!user) return;
+
+                // Memeriksa limit: Ambil semua data di koleksi ini
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia');
+                const snapshot = await getDocs(colRef);
+                
+                // Filter berdasarkan UID user saat ini di memori (Rule 2)
+                const userSubmissions = snapshot.docs.filter(doc => doc.data().uid === user.uid);
+
+                if (userSubmissions.length >= 2) {
+                    showError("Batas Maksimal! Perangkat ini sudah menjawab 2 kali.");
+                    showLoading(false);
+                    return;
+                }
+
+                const responseId = crypto.randomUUID();
+                const responseRef = doc(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia', responseId);
+                
+                await setDoc(responseRef, {
+                    uid: user.uid,
+                    nama: userData.name,
+                    kelas: userData.class,
+                    jawaban_rahasia: itemName,
+                    timestamp: new Date().toISOString()
+                });
+
+                document.getElementById('quiz-section').classList.add('hidden');
+                document.getElementById('result-section').classList.remove('hidden');
+                document.getElementById('result-image').src = imageUrl;
+                document.getElementById('result-text').innerText = `Selamat ${userData.name}, Anda diharapkan membawa barang sesuai gambar yang Anda pilih (${itemName})`;
+            } catch (error) {
+                console.error("Database Error:", error);
+                showError("Koneksi gagal atau masalah izin database.");
+            } finally { showLoading(false); }
+        }
+
+        function restartQuiz() {
+            document.getElementById('result-section').classList.add('hidden');
+            document.getElementById('quiz-section').classList.remove('hidden');
+            initOptions();
+        }
+
+        document.getElementById('btn-start').onclick = startQuiz;
+        document.getElementById('btn-restart').onclick = restartQuiz;
+    </script>
+</body>
+</html>
