@@ -93,7 +93,7 @@
                 </svg>
             </div>
             <h1 class="text-2xl font-extrabold text-slate-100">Verifikasi Identitas</h1>
-            <p class="text-slate-400 text-sm mt-2 text-balance">Masukkan nama lengkap dan kelas.</p>
+            <p class="text-slate-400 text-sm mt-2 text-balance">Masukkan Nama Lengkap dan Kelas/Jurusan</p>
         </div>
 
         <div class="space-y-4 text-left">
@@ -143,7 +143,7 @@
         <div class="relative inline-block mb-8 group">
             <div class="absolute -inset-2 bg-gradient-to-r from-indigo-500 to-rose-500 rounded-2xl blur opacity-20"></div>
             <div class="img-container">
-                <img id="result-image" src="" alt="Barang Rahasia" onerror="this.src='https://placehold.co/600x600?text=Gambar+Tidak+Ditemukan'">
+                <img id="result-image" src="" alt="Barang Rahasia" onerror="this.src='https://images.unsplash.com/photo-1520209759809-a9bcb6cb3241?auto=format&fit=crop&q=80&w=600'">
             </div>
         </div>
         
@@ -151,9 +151,7 @@
             <p id="result-text" class="text-lg md:text-xl font-semibold text-indigo-200"></p>
         </div>
 
-        <button id="btn-restart" class="px-8 py-3 bg-slate-800 hover:bg-slate-700 rounded-full text-xs font-bold tracking-widest uppercase transition-all border border-slate-600">
-            Ulangi & Acak Lagi
-        </button>
+        <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">Akses Jawaban Ditutup</p>
     </div>
 
     <!-- Firebase Scripts -->
@@ -162,7 +160,6 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        // Konfigurasi Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyDDHwbFq1rFoSImy3I8g3O820vV_sPdEHE",
             authDomain: "dpib-system-v2.firebaseapp.com",
@@ -180,7 +177,6 @@
         let user = null;
         let userData = { name: "", class: "" };
 
-        // Helper UI
         const showLoading = (show, text = "Memproses...") => {
             const overlay = document.getElementById('loading-overlay');
             const loadingText = document.getElementById('loading-text');
@@ -195,7 +191,6 @@
             setTimeout(() => { toast.style.display = 'none'; }, 5000);
         };
 
-        // Fungsi Sign In
         const performSignIn = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -215,17 +210,19 @@
 
         onAuthStateChanged(auth, (u) => { user = u; });
 
-        // Data Gambar
+        // Data Gambar (Termasuk Kuas)
         const items = [
             { name: "Kran Air", img: "kran" },
             { name: "Wiper", img: "wiper" },
-            { name: "Kaleng Cat", img: "kaleng.jpg" }
+            { name: "Kaleng Cat", img: "kaleng2.jpg" },
+            { name: "Kuas", img: "kuas.jpg" }
         ];
 
         const labels = [
             "A. X-Aerodinamis 3000 Turbo",
             "B. Paimon si Bebek Rawa Purba",
-            "C. Alexander van Meong-Meong IX"
+            "C. Alexander van Meong-Meong IX",
+            "D. Prototype-Z Cybernetics Mark IV"
         ];
 
         function shuffleArray(array) {
@@ -246,6 +243,17 @@
             try {
                 if (!user) await performSignIn();
                 
+                // Cek apakah sudah pernah menjawab sebelumnya (Limit 1x)
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia');
+                const snapshot = await getDocs(colRef);
+                const userSubmissions = snapshot.docs.filter(doc => doc.data().uid === user.uid);
+
+                if (userSubmissions.length >= 1) {
+                    showError("Batas Maksimal! Perangkat ini sudah menjawab kuis.");
+                    showLoading(false);
+                    return;
+                }
+
                 userData.name = name;
                 userData.class = className;
                 document.getElementById('display-name').innerText = name;
@@ -276,24 +284,10 @@
         }
 
         async function revealSecret(itemName, imageUrl) {
-            showLoading(true, "Memeriksa Riwayat Pengiriman...");
+            showLoading(true, "Mengamankan Data...");
             try {
                 if (!user) await performSignIn();
-                if (!user) return;
-
-                // Memeriksa limit: Ambil semua data di koleksi ini
-                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia');
-                const snapshot = await getDocs(colRef);
                 
-                // Filter berdasarkan UID user saat ini di memori (Rule 2)
-                const userSubmissions = snapshot.docs.filter(doc => doc.data().uid === user.uid);
-
-                if (userSubmissions.length >= 2) {
-                    showError("Batas Maksimal! Perangkat ini sudah menjawab 2 kali.");
-                    showLoading(false);
-                    return;
-                }
-
                 const responseId = crypto.randomUUID();
                 const responseRef = doc(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia', responseId);
                 
@@ -315,14 +309,7 @@
             } finally { showLoading(false); }
         }
 
-        function restartQuiz() {
-            document.getElementById('result-section').classList.add('hidden');
-            document.getElementById('quiz-section').classList.remove('hidden');
-            initOptions();
-        }
-
         document.getElementById('btn-start').onclick = startQuiz;
-        document.getElementById('btn-restart').onclick = restartQuiz;
     </script>
 </body>
 </html>
