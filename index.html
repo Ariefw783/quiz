@@ -71,6 +71,15 @@
             z-index: 200;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
+        .admin-badge {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.2);
+            cursor: pointer;
+            z-index: 50;
+        }
     </style>
 </head>
 <body class="flex items-center justify-center p-4">
@@ -84,6 +93,9 @@
     <!-- Error Toast -->
     <div id="error-toast" class="error-toast"></div>
 
+    <!-- Admin Trigger -->
+    <div id="admin-trigger" class="admin-badge hover:color-white">ADMIN ACCESS</div>
+
     <!-- BAGIAN 1: INPUT IDENTITAS -->
     <div id="auth-section" class="max-w-md w-full glass-card rounded-3xl shadow-2xl p-8 text-center fade-in">
         <div class="mb-6">
@@ -94,6 +106,7 @@
             </div>
             <h1 class="text-2xl font-extrabold text-slate-100">Verifikasi Identitas</h1>
             <p class="text-slate-400 text-sm mt-2 text-balance">Masukkan Nama Lengkap dan Kelas/Jurusan</p>
+            <p id="admin-status" class="hidden text-green-400 text-[10px] font-bold mt-2 uppercase">Mode Admin Aktif (Tanpa Batasan)</p>
         </div>
 
         <div class="space-y-4 text-left">
@@ -152,6 +165,7 @@
         </div>
 
         <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">Akses Jawaban Ditutup</p>
+        <button id="btn-admin-reset" class="hidden mt-4 text-[10px] text-indigo-400 underline hover:text-indigo-300">ADMIN: RESET UNTUK COBA LAGI</button>
     </div>
 
     <!-- Firebase Scripts -->
@@ -176,6 +190,7 @@
 
         let user = null;
         let userData = { name: "", class: "" };
+        let isAdmin = false;
 
         const showLoading = (show, text = "Memproses...") => {
             const overlay = document.getElementById('loading-overlay');
@@ -210,7 +225,7 @@
 
         onAuthStateChanged(auth, (u) => { user = u; });
 
-        // Data Gambar (Termasuk Kuas)
+        // Data Gambar
         const items = [
             { name: "Kran Air", img: "kran" },
             { name: "Wiper", img: "wiper" },
@@ -244,14 +259,17 @@
                 if (!user) await performSignIn();
                 
                 // Cek apakah sudah pernah menjawab sebelumnya (Limit 1x)
-                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia');
-                const snapshot = await getDocs(colRef);
-                const userSubmissions = snapshot.docs.filter(doc => doc.data().uid === user.uid);
+                // Jika Admin, pemeriksaan ini dilewati
+                if (!isAdmin) {
+                    const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia');
+                    const snapshot = await getDocs(colRef);
+                    const userSubmissions = snapshot.docs.filter(doc => doc.data().uid === user.uid);
 
-                if (userSubmissions.length >= 1) {
-                    showError("Batas Maksimal! Perangkat ini sudah menjawab kuis.");
-                    showLoading(false);
-                    return;
+                    if (userSubmissions.length >= 1) {
+                        showError("Batas Maksimal! Perangkat ini sudah menjawab kuis.");
+                        showLoading(false);
+                        return;
+                    }
                 }
 
                 userData.name = name;
@@ -296,18 +314,41 @@
                     nama: userData.name,
                     kelas: userData.class,
                     jawaban_rahasia: itemName,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    admin_test: isAdmin // Flag jika data ini hasil test admin
                 });
 
                 document.getElementById('quiz-section').classList.add('hidden');
                 document.getElementById('result-section').classList.remove('hidden');
                 document.getElementById('result-image').src = imageUrl;
                 document.getElementById('result-text').innerText = `Selamat ${userData.name}, Anda diharapkan membawa barang sesuai gambar yang Anda pilih (${itemName})`;
+                
+                if (isAdmin) {
+                    document.getElementById('btn-admin-reset').classList.remove('hidden');
+                }
             } catch (error) {
                 console.error("Database Error:", error);
                 showError("Koneksi gagal atau masalah izin database.");
             } finally { showLoading(false); }
         }
+
+        // Logic Admin
+        document.getElementById('admin-trigger').onclick = () => {
+            const pass = prompt("Konfirmasi Password Admin:");
+            if (pass === 'lab15.30') {
+                isAdmin = true;
+                document.getElementById('admin-status').classList.remove('hidden');
+                showError("Mode Admin: Akses bebas diaktifkan.");
+            } else if (pass !== null) {
+                showError("Password Salah!");
+            }
+        };
+
+        document.getElementById('btn-admin-reset').onclick = () => {
+            document.getElementById('result-section').classList.add('hidden');
+            document.getElementById('auth-section').classList.remove('hidden');
+            showError("Reset Berhasil (Admin Only)");
+        };
 
         document.getElementById('btn-start').onclick = startQuiz;
     </script>
