@@ -82,7 +82,6 @@
         .admin-badge-right { right: 10px; }
         .admin-badge-left { left: 10px; }
         
-        /* Table Scroll styling */
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
         }
@@ -94,12 +93,11 @@
             border-radius: 10px;
         }
 
-        /* Print Styles */
         @media print {
             body { background: white !important; color: black !important; padding: 0 !important; }
             #admin-data-section { position: absolute !important; display: block !important; background: white !important; padding: 0 !important; }
             .glass-card { background: white !important; border: 1px solid #ddd !important; box-shadow: none !important; backdrop-filter: none !important; }
-            #btn-close-admin-data, #btn-print-admin-data, .admin-badge, #loading-overlay, #auth-section, #quiz-section, #result-section { display: none !important; }
+            #btn-close-admin-data, #btn-print-admin-data, .admin-badge, #loading-overlay, #auth-section, #quiz-section, #result-section, #admin-modal { display: none !important; }
             th { background: #f3f4f6 !important; color: black !important; border-bottom: 2px solid #000 !important; }
             td { color: black !important; border-bottom: 1px solid #eee !important; }
             .text-indigo-300, .text-emerald-400 { color: black !important; font-weight: bold !important; }
@@ -119,7 +117,7 @@
     <!-- Error Toast -->
     <div id="error-toast" class="error-toast"></div>
 
-    <!-- Admin Password Modal (Pop-art Style) -->
+    <!-- Admin Password Modal -->
     <div id="admin-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm">
         <div class="glass-card max-w-sm w-full p-8 rounded-3xl border border-slate-700 fade-in text-center shadow-2xl">
             <div class="w-12 h-12 bg-indigo-600 rounded-full mx-auto flex items-center justify-center mb-4">
@@ -174,8 +172,8 @@
                     <option value="" disabled selected class="bg-slate-900">Pilih Kelas</option>
                     <option value="XII DPIB 1" class="bg-slate-900">XII DPIB 1</option>
                     <option value="XII DPIB 2" class="bg-slate-900">XII DPIB 2</option>
-                    <option value="XII TKP 1" class="bg-slate-900">XII TKP 1</option>
-                    <option value="XII TKP 2" class="bg-slate-900">XII TKP 2</option>
+                    <option value="TKP 1" class="bg-slate-900">TKP 1</option>
+                    <option value="TKP 2" class="bg-slate-900">TKP 2</option>
                 </select>
             </div>
             <button id="btn-start" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all mt-4 uppercase tracking-widest text-sm">
@@ -206,15 +204,20 @@
             </h2>
         </div>
 
-        <div id="options-container" class="space-y-3"></div>
+        <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
     </div>
 
     <!-- BAGIAN 3: HASIL -->
     <div id="result-section" class="hidden max-w-2xl w-full glass-card rounded-3xl shadow-2xl p-8 md:p-12 text-center fade-in">
         <div class="relative inline-block mb-8 group">
             <div class="absolute -inset-2 bg-gradient-to-r from-indigo-500 to-rose-500 rounded-2xl blur opacity-20"></div>
-            <div class="img-container">
+            <div class="img-container" id="result-img-wrapper">
                 <img id="result-image" src="" alt="Barang Rahasia" onerror="this.src='https://images.unsplash.com/photo-1520209759809-a9bcb6cb3241?auto=format&fit=crop&q=80&w=600'">
+            </div>
+            <div id="result-success-icon" class="hidden mx-auto w-32 h-32 text-emerald-500">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
             </div>
         </div>
         
@@ -249,7 +252,7 @@
 
             <div class="glass-card rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col mb-8">
                 <div class="overflow-x-auto custom-scrollbar">
-                    <table class="w-full text-left border-collapse table-auto min-w-[600px]">
+                    <table class="w-full text-left border-collapse table-auto min-w-[700px]">
                         <thead>
                             <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase tracking-widest border-b border-slate-800">
                                 <th class="px-6 py-4 font-bold w-16">No</th>
@@ -259,9 +262,7 @@
                                 <th class="px-6 py-4 font-bold">Waktu</th>
                             </tr>
                         </thead>
-                        <tbody id="admin-table-body" class="text-slate-200 text-sm">
-                            <!-- Data rows will appear here -->
-                        </tbody>
+                        <tbody id="admin-table-body" class="text-slate-200 text-sm"></tbody>
                     </table>
                 </div>
                 <div id="no-data-msg" class="hidden p-12 text-center text-slate-500 italic">Belum ada data terekam...</div>
@@ -292,7 +293,7 @@
         let user = null;
         let userData = { name: "", class: "" };
         let isAdmin = false;
-        let activeAdminAction = null; // 'access' or 'data'
+        let activeAdminAction = null;
 
         const showLoading = (show, text = "Memproses...") => {
             const overlay = document.getElementById('loading-overlay');
@@ -327,19 +328,24 @@
 
         onAuthStateChanged(auth, (u) => { user = u; });
 
-        // Data Gambar
+        // Data Jawaban Rahasia & Gambar
         const items = [
             { name: "Kran Air", img: "kran" },
             { name: "Wiper", img: "wiper" },
             { name: "Cat Kaleng", img: "kaleng2.jpeg" },
-            { name: "Kuas", img: "kuas.jpg" }
+            { name: "Kuas", img: "kuas.jpg" },
+            { name: "SealTape", img: "sealtepe.jpg" },
+            { name: "Selamat, anda tidak harus membawa apa-apa", img: "safe" }
         ];
 
+        // Label Pilihan (Ditambah E dan F)
         const labels = [
             "A. X-Aerodinamis 3000 Turbo",
             "B. Paimon si Bebek Rawa Purba",
             "C. Alexander van Meong-Meong IX",
-            "D. Prototype-Z Cybernetics Mark IV"
+            "D. Prototype-Z Cybernetics Mark IV",
+            "E. Quantum-Seal Nano Membrane",
+            "F. Paspor VIP Jalur Langit"
         ];
 
         function shuffleArray(array) {
@@ -388,14 +394,17 @@
         function initOptions() {
             const container = document.getElementById('options-container');
             container.innerHTML = '';
-            const shuffledLabels = shuffleArray(labels);
-            const shuffledItems = shuffleArray(items);
             
-            shuffledLabels.forEach((label, index) => {
+            const shuffledItems = shuffleArray(items);
+            // Kita ingin memetakan label sesuai urutan setelah pengacakan
+            labels.slice(0, shuffledItems.length).forEach((label, index) => {
                 const targetItem = shuffledItems[index];
                 const btn = document.createElement('button');
-                btn.className = "option-button w-full py-4 px-6 bg-slate-800/40 border border-slate-700/50 rounded-2xl font-bold text-slate-200 text-left flex justify-between items-center group mb-3";
-                btn.innerHTML = `<span>${label}</span><span class="text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] tracking-widest font-black uppercase">Enkripsi</span>`;
+                btn.className = "option-button w-full py-4 px-6 bg-slate-800/40 border border-slate-700/50 rounded-2xl font-bold text-slate-200 text-left flex justify-between items-center group mb-1";
+                btn.innerHTML = `
+                    <span class="truncate pr-2">${label}</span>
+                    <span class="text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] tracking-widest font-black uppercase whitespace-nowrap">Enkripsi</span>
+                `;
                 btn.onclick = () => revealSecret(targetItem.name, targetItem.img);
                 container.appendChild(btn);
             });
@@ -420,8 +429,21 @@
 
                 document.getElementById('quiz-section').classList.add('hidden');
                 document.getElementById('result-section').classList.remove('hidden');
-                document.getElementById('result-image').src = imageUrl;
-                document.getElementById('result-text').innerText = `Selamat ${userData.name}, Anda diharapkan membawa barang sesuai gambar yang Anda pilih (${itemName})`;
+                
+                const imgEl = document.getElementById('result-image');
+                const imgWrapper = document.getElementById('result-img-wrapper');
+                const successIcon = document.getElementById('result-success-icon');
+
+                if (imageUrl === 'safe') {
+                    imgWrapper.classList.add('hidden');
+                    successIcon.classList.remove('hidden');
+                    document.getElementById('result-text').innerText = `${itemName}`;
+                } else {
+                    imgWrapper.classList.remove('hidden');
+                    successIcon.classList.add('hidden');
+                    imgEl.src = imageUrl;
+                    document.getElementById('result-text').innerText = `Selamat ${userData.name}, Anda diharapkan membawa barang sesuai gambar yang Anda pilih (${itemName})`;
+                }
                 
                 if (isAdmin) {
                     document.getElementById('btn-admin-reset').classList.remove('hidden');
@@ -432,7 +454,7 @@
             } finally { showLoading(false); }
         }
 
-        // --- Logic Panel Rekap Data Admin ---
+        // --- Admin Data Logic ---
         const fetchAdminData = async () => {
             showLoading(true, "Mengunduh Data Rekap...");
             const tableBody = document.getElementById('admin-table-body');
@@ -441,20 +463,14 @@
 
             try {
                 if (!user) await performSignIn();
-                
-                // Fetching all documents - effectively "unlimited" based on DB content
                 const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia');
                 const snapshot = await getDocs(colRef);
                 
                 let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                if (data.length === 0) {
-                    noDataMsg.classList.remove('hidden');
-                } else {
-                    noDataMsg.classList.add('hidden');
-                }
+                if (data.length === 0) noDataMsg.classList.remove('hidden');
+                else noDataMsg.classList.add('hidden');
 
-                // Sort by Class (Kelas) then by Name (Nama) alphabetically
                 data.sort((a, b) => {
                     const classCompare = (a.kelas || "").localeCompare(b.kelas || "");
                     if (classCompare !== 0) return classCompare;
@@ -464,12 +480,10 @@
                 data.forEach((item, index) => {
                     const row = document.createElement('tr');
                     row.className = "border-b border-slate-800/50 hover:bg-slate-900/30 transition-colors";
-                    
                     const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleString('id-ID', {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit'
                     }) : '-';
-                    
                     row.innerHTML = `
                         <td class="px-6 py-4 text-slate-500 font-mono">${index + 1}</td>
                         <td class="px-6 py-4 font-bold text-indigo-300">${item.kelas || '-'}</td>
@@ -482,72 +496,44 @@
 
                 document.getElementById('admin-data-section').classList.remove('hidden');
             } catch (error) {
-                console.error("Fetch Data Error:", error);
-                showError("Gagal mengambil data dari database.");
-            } finally {
-                showLoading(false);
-            }
+                showError("Gagal mengambil data.");
+            } finally { showLoading(false); }
         };
 
-        // --- Admin Password Modal Logic ---
+        // Modal Logic
         const adminModal = document.getElementById('admin-modal');
         const adminInput = document.getElementById('admin-password-input');
-        
         const openAdminModal = (action) => {
             activeAdminAction = action;
             adminModal.classList.remove('hidden');
             adminInput.value = '';
             adminInput.focus();
         };
-
-        const closeAdminModal = () => {
-            adminModal.classList.add('hidden');
-            activeAdminAction = null;
-        };
-
         const handleAdminSubmit = () => {
-            const pass = adminInput.value;
-            if (pass === 'lab15.30') {
+            if (adminInput.value === 'lab15.30') {
                 if (activeAdminAction === 'access') {
                     isAdmin = true;
                     document.getElementById('admin-status').classList.remove('hidden');
                     showError("Mode Admin Access Aktif.");
-                } else if (activeAdminAction === 'data') {
-                    fetchAdminData();
-                }
-                closeAdminModal();
+                } else if (activeAdminAction === 'data') fetchAdminData();
+                adminModal.classList.add('hidden');
             } else {
                 showError("Password Salah!");
                 adminInput.value = '';
-                adminInput.focus();
             }
         };
 
-        // Event Handlers
         document.getElementById('admin-trigger').onclick = () => openAdminModal('access');
         document.getElementById('admin-data-trigger').onclick = () => openAdminModal('data');
-        document.getElementById('btn-modal-cancel').onclick = closeAdminModal;
+        document.getElementById('btn-modal-cancel').onclick = () => adminModal.classList.add('hidden');
         document.getElementById('btn-modal-submit').onclick = handleAdminSubmit;
-        
-        // Submit on Enter key
-        adminInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleAdminSubmit();
-        });
-
-        document.getElementById('btn-close-admin-data').onclick = () => {
-            document.getElementById('admin-data-section').classList.add('hidden');
-        };
-
-        document.getElementById('btn-print-admin-data').onclick = () => {
-            window.print();
-        };
-
+        adminInput.onkeypress = (e) => { if (e.key === 'Enter') handleAdminSubmit(); };
+        document.getElementById('btn-close-admin-data').onclick = () => document.getElementById('admin-data-section').classList.add('hidden');
+        document.getElementById('btn-print-admin-data').onclick = () => window.print();
         document.getElementById('btn-admin-reset').onclick = () => {
             document.getElementById('result-section').classList.add('hidden');
             document.getElementById('auth-section').classList.remove('hidden');
-            showError("Reset Berhasil (Mode Admin)");
         };
-
         document.getElementById('btn-start').onclick = startQuiz;
     </script>
 </body>
