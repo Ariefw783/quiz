@@ -117,6 +117,7 @@
             .max-w-6xl { max-width: 100% !important; margin: 0 !important; width: 100% !important; }
             tr { page-break-inside: avoid; }
             h2, p { color: black !important; }
+            .no-print { display: none !important; }
         }
     </style>
 </head>
@@ -254,7 +255,7 @@
             </div>
 
             <!-- Admin Filters -->
-            <div id="admin-filters" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div id="admin-filters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div class="relative">
                     <input type="text" id="filter-name" placeholder="Cari Nama Siswa..." class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all">
                 </div>
@@ -274,14 +275,20 @@
                     <option value="SealTape">SealTape</option>
                     <option value="Thinner">Thinner</option>
                 </select>
+                <select id="filter-collected" class="bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all appearance-none">
+                    <option value="">Semua Status Kumpul</option>
+                    <option value="true">Sudah Kumpul</option>
+                    <option value="false">Belum Kumpul</option>
+                </select>
             </div>
 
             <div class="glass-card rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col mb-8">
                 <div class="overflow-x-auto custom-scrollbar">
-                    <table id="rekap-table" class="w-full text-left border-collapse table-auto min-w-[700px]">
+                    <table id="rekap-table" class="w-full text-left border-collapse table-auto min-w-[800px]">
                         <thead>
                             <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase tracking-widest border-b border-slate-800">
                                 <th class="px-6 py-4 font-bold w-16">No</th>
+                                <th class="px-6 py-4 font-bold w-12 no-print text-center">✓</th>
                                 <th class="px-6 py-4 font-bold">Kelas</th>
                                 <th class="px-6 py-4 font-bold">Nama Lengkap</th>
                                 <th class="px-6 py-4 font-bold">Jawaban Rahasia</th>
@@ -300,7 +307,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, collection, getDocs, updateDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDDHwbFq1rFoSImy3I8g3O820vV_sPdEHE",
@@ -428,7 +435,8 @@
                     kelas: userData.class,
                     jawaban_rahasia: itemName,
                     timestamp: new Date().toISOString(),
-                    admin_test: isAdmin
+                    admin_test: isAdmin,
+                    is_collected: false
                 });
                 document.getElementById('quiz-section').classList.add('hidden');
                 document.getElementById('result-section').classList.remove('hidden');
@@ -439,6 +447,18 @@
                 if (isAdmin) document.getElementById('btn-admin-reset').classList.remove('hidden');
             } catch (err) { showError("Koneksi gagal."); } finally { showLoading(false); }
         }
+
+        const toggleCollection = async (docId, status) => {
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'hasil_kuis_rahasia', docId);
+                await updateDoc(docRef, { is_collected: status });
+                // Update local data raw
+                const index = allDataRaw.findIndex(i => i.id === docId);
+                if (index !== -1) allDataRaw[index].is_collected = status;
+            } catch (err) {
+                showError("Gagal memperbarui status kumpul.");
+            }
+        };
 
         const renderTable = (data) => {
             const tableBody = document.getElementById('admin-table-body');
@@ -456,21 +476,45 @@
                 const row = document.createElement('tr');
                 row.className = "border-b border-slate-800/50 hover:bg-slate-900/30 transition-colors";
                 const date = item.timestamp ? new Date(item.timestamp).toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
-                row.innerHTML = `<td class="px-6 py-4 text-slate-500 font-mono">${index + 1}</td><td class="px-6 py-4 font-bold text-indigo-300">${item.kelas || '-'}</td><td class="px-6 py-4">${item.nama || '-'}</td><td class="px-6 py-4 text-emerald-400 font-semibold">${item.jawaban_rahasia || '-'}</td><td class="px-6 py-4 text-[10px] text-slate-400 whitespace-nowrap">${date}</td>`;
+                
+                const isCollected = item.is_collected === true;
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 text-slate-500 font-mono">${index + 1}</td>
+                    <td class="px-6 py-4 text-center no-print">
+                        <input type="checkbox" class="w-5 h-5 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer" 
+                               ${isCollected ? 'checked' : ''} 
+                               onchange="window.handleCheck('${item.id}', this.checked)">
+                    </td>
+                    <td class="px-6 py-4 font-bold text-indigo-300">${item.kelas || '-'}</td>
+                    <td class="px-6 py-4">${item.nama || '-'}</td>
+                    <td class="px-6 py-4 text-emerald-400 font-semibold">${item.jawaban_rahasia || '-'}</td>
+                    <td class="px-6 py-4 text-[10px] text-slate-400 whitespace-nowrap">${date}</td>
+                `;
                 tableBody.appendChild(row);
             });
+        };
+
+        window.handleCheck = (id, checked) => {
+            toggleCollection(id, checked);
         };
 
         const filterData = () => {
             const search = document.getElementById('filter-name').value.toLowerCase();
             const classVal = document.getElementById('filter-class').value;
             const itemVal = document.getElementById('filter-item').value;
+            const collectedVal = document.getElementById('filter-collected').value;
 
             const filtered = allDataRaw.filter(item => {
                 const matchSearch = (item.nama || "").toLowerCase().includes(search);
                 const matchClass = !classVal || item.kelas === classVal;
                 const matchItem = !itemVal || item.jawaban_rahasia === itemVal;
-                return matchSearch && matchClass && matchItem;
+                
+                let matchCollected = true;
+                if (collectedVal === "true") matchCollected = item.is_collected === true;
+                if (collectedVal === "false") matchCollected = !item.is_collected;
+                
+                return matchSearch && matchClass && matchItem && matchCollected;
             });
             renderTable(filtered);
         };
@@ -507,6 +551,7 @@
         document.getElementById('filter-name').oninput = filterData;
         document.getElementById('filter-class').onchange = filterData;
         document.getElementById('filter-item').onchange = filterData;
+        document.getElementById('filter-collected').onchange = filterData;
 
         document.getElementById('btn-close-admin-data').onclick = () => document.getElementById('admin-data-section').classList.add('hidden');
         document.getElementById('btn-print-admin-data').onclick = () => window.print();
