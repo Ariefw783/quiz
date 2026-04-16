@@ -288,7 +288,7 @@
                         <thead>
                             <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase tracking-widest border-b border-slate-800">
                                 <th class="px-6 py-4 font-bold w-16">No</th>
-                                <th class="px-6 py-4 font-bold w-12 no-print text-center">✓</th>
+                                <th class="px-6 py-4 font-bold w-12 text-center">✓</th>
                                 <th class="px-6 py-4 font-bold">Kelas</th>
                                 <th class="px-6 py-4 font-bold">Nama Lengkap</th>
                                 <th class="px-6 py-4 font-bold">Jawaban Rahasia</th>
@@ -481,7 +481,7 @@
                 
                 row.innerHTML = `
                     <td class="px-6 py-4 text-slate-500 font-mono">${index + 1}</td>
-                    <td class="px-6 py-4 text-center no-print">
+                    <td class="px-6 py-4 text-center">
                         <input type="checkbox" class="w-5 h-5 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer" 
                                ${isCollected ? 'checked' : ''} 
                                onchange="window.handleCheck('${item.id}', this.checked)">
